@@ -6,10 +6,20 @@ Created on May 17, 2015
 
 import os
 from base64 import encodestring
-import IPython.nbformat as nb
 
-from traits.api import HasTraits, Str
-from pymol.helping import examples
+from IPython.nbformat.v4 import new_code_cell, new_output
+
+from traits.api import HasTraits, Str, Interface, Int, Instance
+from op_plugins import IOperationPlugin
+
+class IOpNotebookWriter(Interface):
+    
+    op_idx = Int()
+    op = Instance(IOperationPlugin)
+    
+    def get_src(self):
+        """Write the source for this op"""
+    
 
 class IPythonNotebookWriter(HasTraits):
     
@@ -31,4 +41,8 @@ class IPythonNotebookWriter(HasTraits):
     file = Str
     
     def export(self, workflow):
-        pass
+        for i, wi in enumerate(workflow.workflow):
+            op = wi.operation
+            writer = op.notebook_writer(op_idx = i, op = op)
+            op_src = writer.get_src()
+            print op_src

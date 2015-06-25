@@ -12,9 +12,10 @@ if __name__ == '__main__':
     os.environ['TRAITS_DEBUG'] = "1"
 
 from traitsui.api import View, Item, Controller
-from traits.api import Button, Property, cached_property, provides
+from traits.api import HasTraits, Button, Property, Int, cached_property, provides, Instance
 from cytoflowgui.import_dialog import ExperimentDialog
 from cytoflowgui.op_plugins.i_op_plugin import IOperationPlugin, OpHandlerMixin
+from cytoflowgui.ipython import IOpNotebookWriter
 from pyface.api import OK as PyfaceOK
 from cytoflow import ImportOp
 from envisage.api import Plugin
@@ -78,7 +79,37 @@ class ImportHandler(Controller, OpHandlerMixin):
             return self.wi.result.data.shape[0]
         else:
             return 0
+        
+@provides(IOpNotebookWriter)
+class ImportOpNotebookWriter(HasTraits):
 
+    op_idx = Int
+    op = Instance(ImportOp)
+    
+    def get_src(self):
+        src = ""
+        
+        op_name = "import_op_{}".format(self.op_idx)
+        src += "{} = ImportOp()\n".format(op_name)
+        if self.op.coarse:
+            src += "{}.coarse = {}\n".format(op_name, self.op.coarse)
+            src += "{}.coarse_events = {}\n".format(op_name, self.op.coarse_events)
+            
+        src += "{}.conditions = {}\n".format(op_name, self.op.conditions)
+        src += "\n"
+        
+        for i, tube in enumerate(self.op.tubes):
+            tube_name = "tube_{}".format(i)
+            src += "{} = Tube()\n".format(tube_name)
+            src += "{}.file = \"{}\"\n".format(tube_name, tube.file)
+            src += "{}.conditions = {}\n".format(tube_name, tube.conditions)
+            src += "{}.tubes.append({})\n".format(op_name, tube_name)
+            src += "\n"
+            
+        src += "ex{} = {}.apply()\n".format(self.op_idx, op_name)
+        
+        return src
+    
             
 @provides(IOperationPlugin)
 class ImportPlugin(Plugin):
@@ -95,7 +126,18 @@ class ImportPlugin(Plugin):
     def get_operation(self):
         ret = ImportOp()
         ret.handler_factory = ImportHandler
+        ret.notebook_writer = ImportOpNotebookWriter
+
         return ret
     
     def get_default_view(self, op):
         None
+        
+
+
+            
+            
+            
+        
+        
+        

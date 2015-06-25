@@ -25,7 +25,6 @@ from cytoflowgui.op_plugins import IOperationPlugin, ImportPlugin, OP_PLUGIN_EXT
 from cytoflowgui.view_plugins import IViewPlugin, VIEW_PLUGIN_EXT
 from cytoflowgui.workflow_item import WorkflowItem
 
-
 from util import UniquePriorityQueue
 import threading
 import pickle as pickle
@@ -286,8 +285,7 @@ class FlowTask(Task):
                             wildcard = '*.ipynb')
         if dialog.open() == OK:
             writer = IPythonNotebookWriter(file = dialog.path)
-            writer.export(self.workflow)
-            
+            writer.export(self.model)
     
     def on_prefs(self):
         pass
