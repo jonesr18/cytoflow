@@ -70,7 +70,7 @@ class HlogTransformOp(HasStrictTraits):
         
         new_experiment = old_experiment.clone()
         
-        transform = Transformation("hlog")
+        transform = Transformation("hlog", name = self.name)
         
         for channel in self.channels:
             new_experiment[channel] = transform(old_experiment[channel])

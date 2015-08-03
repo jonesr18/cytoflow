@@ -126,9 +126,31 @@ class Experiment(HasStrictTraits):
         return self.data.__setitem__(key, value)
     
     def query(self, expr, **kwargs):
-        """Expose pandas.DataFrame.query() to the outside world"""
+        """Expose pandas.DataFrame.query() to the outside world
+        NOTE: THIS WILL NOT WORK IF YOU ARE QUERYING WITH A LOCAL VARIABLE, YOU
+              MUST DIRECTLY QUERY Experiment.data TO DO THAT!
+        """
         return self.data.query(expr, **kwargs)
     
+    def merge(self, other):
+        """Merges some other experiment into this one. Conditions and channels must match.
+        
+        The old experiment is not deleted from memory in this operation.
+        
+        Parameters
+        ----------
+            other : Experiment
+                Some other experiment to merge into this one.
+        
+        """
+        if self.conditions != other.conditions:
+            RuntimeError("This and other experiments do not have consistent conditions")
+        
+        if self.channels != other.channels: 
+            RuntimeError("This and other experiments do not have consistent channels")
+            
+        self.data.append(other.data.copy())
+        
     def clone(self):
         """Clone this experiment"""
         new_exp = self.clone_traits()
@@ -156,6 +178,11 @@ class Experiment(HasStrictTraits):
         if(self._tube_conditions):
             raise RuntimeError("You have to add all your conditions before "
                                "adding your tubes!")              
+        
+        # Check if there is a "Tube" condition yet, if not, add it.
+        # This is necessary for iterating over samples with query()
+        if not "Tube" in self.conditions:
+            conditions["Tube"] = "str"
             
         for key, value in conditions.iteritems():
             #self.data[key] = pd.Series(dtype = value)
@@ -177,7 +204,10 @@ class Experiment(HasStrictTraits):
         conditions : dict(string : any)
             the tube's experimental conditions in (condition:value) pairs
         """
-    
+        
+        # Add the well ID as a condition
+        conditions["Tube"] = tube.ID
+        
         if(self.channels):
             # first, make sure the new tube's channels match the rest of the 
             # channels in the Experiment

@@ -1,0 +1,4 @@
+filename	Dox
+str	float
+..\tests\data\Plate01\RFP_Well_A3.fcs	10
+..\tests\data\Plate01\CFP_Well_A4.fcs	1

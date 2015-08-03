@@ -18,11 +18,11 @@ class RangeSelection(HasStrictTraits):
     
     Attributes
     ----------
-    min : Float
-        The minimum value of the range.
+    low : Float
+        The minimum (low) value of the range.
         
-    max : Float
-        The maximum value of the range.
+    high : Float
+        The maximum (high) value of the range.
         
     view : Instance(IView)
         the IView that this view is wrapping.  I suggest that if it's another

@@ -1,0 +1,37 @@
+Setting up to use CytoFlow (Windows, Python 2.7)
+
+Ross Jones
+2015-06-21
+
+Step 1: Aquire Anaconda 2.2.0 Python Distribution
+
+As my python core, I use Anaconda [1]. From the site:
+
+"Anaconda is a completely free Python distribution (including for commercial use and redistribution).
+It includes over 195 of the most popular Python packages for science, math, engineering, data analysis."
+
+It really has has virtually every package you'll need for scientific analysis, including pandas, SciPy, and NumPy.
+
+Step 2: Get Microsoft Visual C++ Compiler for Python 2.7
+
+This is needed for the traits package. You can find it here [2].
+
+Step 3: Acquire Remaining Dependencies with pip
+
+pip is a command-line program used to reliably find and install python packages.
+To use it, open your command line in Administrative mode and type "pip". 
+The program will list functions you can use to peruse, update, and add packages. 
+
+To install a package, simply type "pip install <package name>" (don't actually add <these>)
+You will need the following packages:
+
+envisage
+traits
+flowcytometrytools
+seaborn
+
+And after that you should be able to successfully run cytoflow!
+
+References
+1. https://store.continuum.io/cshop/anaconda/
+2. http://www.microsoft.com/en-us/download/details.aspx?id=44266
