@@ -65,9 +65,9 @@ def test1(tube1, tube2):
     hlog.channels = modelChannels
     ex2 = hlog.apply(ex)
     
-    print ex2[modelChannels]
+    print "\nex2 model channel data:\n", ex2[modelChannels]
     for key in ex2.metadata: print key, ": ", ex2.metadata[key]
-    print ex2.conditions
+    print "ex2 conditions: ", ex2.conditions
     
     # Create GMM
     gmm = flow.MixtureModelOp()
@@ -76,14 +76,15 @@ def test1(tube1, tube2):
     gmm.channels = modelChannels
     gmm.numPopulations = 2
     gmm.transform = "hlog"
-    gmm.estimate(ex2, modelChannels)
+    means = gmm.estimate(ex2)
+    print means
     
     # Apply GMM probability to experiment
     ex3 = gmm.apply(ex2)
     
-    print ex3[modelChannels]
+    print "\nex3 model channel data:\n", ex3[modelChannels + ["GMM"]]
     for key in ex3.metadata: print key, ": ", ex3.metadata[key]
-    print ex3.conditions
+    print "ex3 conditions: ", ex3.conditions
     
     
     # --- Plotting --- #
@@ -92,11 +93,13 @@ def test1(tube1, tube2):
     s.huefacet = 'GMM'
     s.xchannel = 'Y2-A'
     s.ychannel = 'B1-A'
+    s.xfacet = "Dox"
     s.plot(ex3, s = 10)
     
     h = flow.HistogramView()
     h.channel = 'Y2-A'
     h.huefacet = 'GMM'
+    h.xfacet = "Dox"
     h.plot(ex3)
     
    
@@ -126,9 +129,9 @@ def test2(tube1, tube2):
     hlog.channels = modelChannels
     ex2 = hlog.apply(ex)
     
-    print ex2[modelChannels]
+    print "\nex2 model channel data:\n", ex2[modelChannels]
     for key in ex2.metadata: print key, ": ", ex2.metadata[key]
-    print ex2.conditions
+    print "ex2 conditions: ", ex2.conditions
     
     # Create GMM
     gmm = flow.MixtureModelOp()
@@ -137,14 +140,15 @@ def test2(tube1, tube2):
     gmm.channels = modelChannels
     gmm.numPopulations = 2
     gmm.transform = "hlog"
-    gmm.estimate(ex2, modelChannels)
+    means = gmm.estimate(ex2)
+    print means
     
     # Apply GMM probability to experiment
     ex3 = gmm.apply(ex2)
     
-    print ex3[modelChannels]
+    print "\nex3 model channel data:\n", ex3[modelChannels + ["GMM"]]
     for key in ex3.metadata: print key, ": ", ex3.metadata[key]
-    print ex3.conditions
+    print "ex3 conditions: ", ex3.conditions
     
     
     # --- Plotting --- #
@@ -153,11 +157,13 @@ def test2(tube1, tube2):
     s.huefacet = 'GMM'
     s.xchannel = 'Y2-A'
     s.ychannel = 'B1-A'
+    s.xfacet = "Dox"
     s.plot(ex3, s = 10)
     
     h = flow.HistogramView()
     h.channel = 'Y2-A'
     h.huefacet = 'GMM'
+    h.xfacet = "Dox"
     h.plot(ex3)
 
 

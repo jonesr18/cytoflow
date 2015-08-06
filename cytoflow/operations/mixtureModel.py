@@ -31,7 +31,7 @@ class MixtureModelOp(HasTraits):
     numPopulations = Int()
     transform = CStr()     # Must be a canonical name (see FlowCytometryTools.core.transforms)
     debug = False
-    _mixtureModel = []
+    _mixtureModel = {}
     _estimated = False
 
     
@@ -83,18 +83,23 @@ class MixtureModelOp(HasTraits):
         
         Parameters
         ----------
-        experiment : Experiment
-            the Experiment to use in the estimation.
-        
-        subset : Str (optional)
-            a string passed to pandas.DataFrame.query() to select the subset
-            of data on which to run the parameter estimation.
+            experiment : Experiment
+                the Experiment to use in the estimation.
+            
+            subset : Str (optional)
+                a string passed to pandas.DataFrame.query() to select the subset
+                of data on which to run the parameter estimation.
             
         Returns
         -------
-        means : Float
-            the mean of each population. Row := population, Col := channel.
+            {Str: float}
+                Tube ID: the mean of each population. 
+                Row := population, Col := channel.
         """ 
+        
+        if self.debug: 
+            print "\nEstimating GMM from experiment: ", experiment, \
+                  "\nwith subset selected: ", subset, '\n'
         
         self.checkTransform(experiment)
                 
@@ -102,24 +107,27 @@ class MixtureModelOp(HasTraits):
         for i, tube in enumerate(set(experiment["Tube"])):
             
             # Get channel data to fit from experiment
-            if self.debug: 
-                print tube
-                print experiment.conditions
+            
             tubeData = experiment[experiment.data.Tube == tube]
             if subset:
                 tubeData = tubeData.query(subset)
             cellData = tubeData[self.channels]
             
             # Create mixture model
-            self._mixtureModel.append(GMM(self.numPopulations))
-            self._mixtureModel[i].fit(cellData)
-            score = self._mixtureModel[i].score_samples(cellData)
+            gmm = GMM(self.numPopulations)
+            gmm.fit(cellData.values)
+            self._mixtureModel[tube] = gmm
             
-            if self.debug: print "Log likelihood: ", score
+            if self.debug: 
+                print "\n>> MixtureModelOp.estimate() loop ", i, " debug output:"
+                print "Tube: ", tube
+                print "Conditions: ", experiment.conditions
+                print "Cell data:\n", cellData
+                print "Log likelihood: ", gmm.score_samples(cellData)
             
         # Return means to client and unblock apply method
         self._estimated = True
-        return [m.means_ for m in self._mixtureModel]
+        return {tube: model.means_ for (tube, model) in self._mixtureModel.iteritems()}
     
     
     def apply(self, experiment):
@@ -147,6 +155,9 @@ class MixtureModelOp(HasTraits):
                 the old Experiment with this operation applied.
         """
         
+        if self.debug: 
+            print "\nApplying GMM to experiment: ", experiment, "\n"
+        
         # Validate model has been created
         if not self._estimated:
             raise RuntimeError("Must run 'estimate' before applying model to data!")
@@ -155,32 +166,27 @@ class MixtureModelOp(HasTraits):
         newExperiment = experiment.clone()
         
         # Do prediction for each tube
-        classifications = array([]).T
-        predictions = array([[]] * self.numPopulations).T
         for i, tube in enumerate(set(newExperiment["Tube"])):
             
             tubeData = newExperiment[newExperiment.data.Tube == tube]
             cellData = tubeData[self.channels]
-                        
-            classification = self._mixtureModel[i].predict(cellData)
-            prediction = self._mixtureModel[i].predict_proba(cellData)
+            
+            gmm = self._mixtureModel[tube]
+            classification = gmm.predict(cellData.values)
+            prediction = gmm.predict_proba(cellData.values)
+            
             if self.debug:
-                print type(classification)
-                print "Shape of classification: ", classification.shape
-                print "Shape of classifications: ", classifications.shape
-                print type(prediction)
-                print "Shape of prediction: ", prediction.shape
-                print "Shape of predictions: ", predictions.shape
-                print "Shape of data: ", newExperiment.data.shape
-            classifications = concatenate((classifications, classification))
-            predictions = concatenate((predictions, prediction))
+                print "\n>> MixtureModelOp.apply() loop ", i, " debug output:"
+                print "Tube: ", tube
+                print "Shape of tube data: ", cellData.shape
+                print "Classification: ", classification
+                print "Prediction: ", prediction
             
+            # This is needed since the order is not preserved when selecting from the set of tubes
+            newExperiment.data.loc[newExperiment.data.Tube == tube, "GMM"] = classification
+            for j in range(self.numPopulations):
+                newExperiment.data.loc[newExperiment.data.Tube == tube, "Pop_ " + str(j)] = prediction[:, j]
             
-        # Add data columns
-        newExperiment["GMM"] = classifications
-        for i in range(self.numPopulations):
-            newExperiment["Pop_" + str(i)] = predictions[:, i]
-        
         newExperiment.metadata["GMM"] = {}
         return newExperiment
         

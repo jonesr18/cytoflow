@@ -178,11 +178,6 @@ class Experiment(HasStrictTraits):
         if(self._tube_conditions):
             raise RuntimeError("You have to add all your conditions before "
                                "adding your tubes!")              
-        
-        # Check if there is a "Tube" condition yet, if not, add it.
-        # This is necessary for iterating over samples with query()
-        if not "Tube" in self.conditions:
-            conditions["Tube"] = "str"
             
         for key, value in conditions.iteritems():
             #self.data[key] = pd.Series(dtype = value)
@@ -204,9 +199,6 @@ class Experiment(HasStrictTraits):
         conditions : dict(string : any)
             the tube's experimental conditions in (condition:value) pairs
         """
-        
-        # Add the well ID as a condition
-        conditions["Tube"] = tube.ID
         
         if(self.channels):
             # first, make sure the new tube's channels match the rest of the 
@@ -281,6 +273,7 @@ class Experiment(HasStrictTraits):
         # check with int/float/double files!
         
         new_data = tube.data.astype("float64", copy=True)
+        new_data["Tube"] = tube.ID
         
         for meta_name, meta_value in conditions.iteritems():
             if(meta_name not in self.conditions):
