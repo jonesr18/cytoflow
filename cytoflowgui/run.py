@@ -7,6 +7,11 @@ Created on Feb 11, 2015
 from traits.etsconfig.api import ETSConfig
 ETSConfig.toolkit = 'qt4'
 
+import matplotlib
+
+# We want matplotlib to use our backend
+matplotlib.use('module://matplotlib_backend')
+
 import logging
 
 from envisage.core_plugin import CorePlugin
@@ -15,21 +20,24 @@ from envisage.ui.tasks.tasks_plugin import TasksPlugin
 from flow_task import FlowTaskPlugin
 from cytoflow_application import CytoflowApplication
 from op_plugins import ImportPlugin, ThresholdPlugin, HLogPlugin, RangePlugin, \
-                       Range2DPlugin, PolygonPlugin, LogiclePlugin
+                       Range2DPlugin, PolygonPlugin, LogiclePlugin, \
+                       BinningPlugin, LogPlugin
 from view_plugins import HistogramPlugin, HexbinPlugin, ScatterplotPlugin, \
                          BarChartPlugin, Stats1DPlugin
+                         
+import sys
 
-def run_gui(argv):
+def run_gui():
     
     logging.basicConfig(level=logging.DEBUG)
     
-    debug = ("--debug" in argv)
+    debug = ("--debug" in sys.argv)
 
     plugins = [CorePlugin(), TasksPlugin(), FlowTaskPlugin(debug = debug),
                ImportPlugin(), ThresholdPlugin(), HistogramPlugin(),
                HLogPlugin(), HexbinPlugin(), ScatterplotPlugin(), RangePlugin(),
                Range2DPlugin(), PolygonPlugin(), BarChartPlugin(), 
-               Stats1DPlugin(), LogiclePlugin()]
+               Stats1DPlugin(), LogiclePlugin(), BinningPlugin(), LogPlugin()]
     
     app = CytoflowApplication(id = 'edu.mit.synbio.cytoflow',
                               plugins = plugins)
@@ -38,7 +46,6 @@ def run_gui(argv):
     logging.shutdown()
 
 if __name__ == '__main__':
-    import sys
     from pyface.qt import qt_api
     
     if qt_api == "pyside":
@@ -49,8 +56,10 @@ if __name__ == '__main__':
         print "   environment variable QT_API to \"pyqt\""
         print "   * eg, on Linux, type on the command line:"
         print "     QT_API=\"pyqt\" python run.py"
-        # TODO - better instructions
+        print "   * on Windows, try: "
+        print "     setx QT_API \"pyqt\""
+
         sys.exit(1)
     
 
-    run_gui(sys.argv)
+    run_gui()

@@ -21,22 +21,6 @@ class IOperation(Interface):
     id = Str
     friendly_id = Str
     name = Str
-    
-    def is_valid(self, experiment):
-        """Validate the parameters of this operation given an Experiment.
-        
-        For example, make sure that all the channels this op asks for 
-        exist; or that the subset string for a data-driven op is valid.
-        
-        Parameters
-        ----------
-        experiment : Experiment
-            the Experiment to validate this op against
-            
-        Returns
-        -------
-            True if this op will work; False otherwise.
-        """
         
     def estimate(self, experiment, subset = None):
         """Estimate this operation's parameters from some data.
@@ -53,7 +37,12 @@ class IOperation(Interface):
         subset : Str (optional)
             a string passed to pandas.DataFrame.query() to select the subset
             of data on which to run the parameter estimation.
-        
+            
+        Raises
+        ------
+        CytoflowOpException
+            If the operation can't be be completed because of bad op
+            parameters.
         """ 
     
     def apply(self, experiment):
@@ -62,11 +51,33 @@ class IOperation(Interface):
         
         Parameters
         ----------
-            old_experiment : Experiment
+            experiment : Experiment
                 the Experiment to apply this op to
                     
         Returns
         -------
             Experiment
                 the old Experiment with this operation applied
+                
+        Raises
+        ------
+        CytoflowOpException
+            If the operation can't be be completed because of bad op
+            parameters.
         """
+        
+    def default_view(self):
+        """
+        Many operations have a "default" view.  This can either be a diagnostic
+        for the operation's estimate() method, an interactive for setting
+        gates, etc.  Frequently it makes sense to link the properties of the
+        view to the properties of the IOperation; sometimes, *default_view()*
+        is the only way to get the view (ie, it's not useful when it doesn't
+        reference an IOperation instance.)
+        
+        Returns
+        -------
+            IView
+                the IView instance
+        """
+        

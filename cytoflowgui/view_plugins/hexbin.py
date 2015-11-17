@@ -4,15 +4,16 @@ Created on Apr 23, 2015
 @author: brian
 '''
 
-from traitsui.api import View, Item, Controller, EnumEditor, Handler
+from traitsui.api import View, Item, Controller, EnumEditor
 from envisage.api import Plugin, contributes_to
-from traits.api import provides, Callable, Instance
+from traits.api import provides, Callable
 from pyface.api import ImageResource
 
 from cytoflow import HexbinView
 from cytoflowgui.subset_editor import SubsetEditor
+from cytoflowgui.color_text_editor import ColorTextEditor
 from cytoflowgui.view_plugins.i_view_plugin \
-    import IViewPlugin, VIEW_PLUGIN_EXT, ViewHandlerMixin
+    import IViewPlugin, VIEW_PLUGIN_EXT, ViewHandlerMixin, PluginViewMixin
 
 class HexbinHandler(Controller, ViewHandlerMixin):
     '''
@@ -39,17 +40,17 @@ class HexbinHandler(Controller, ViewHandlerMixin):
                     Item('_'),
                     Item('object.subset',
                          label="Subset",
-                         editor = SubsetEditor(experiment = "handler.wi.result")))
+                         editor = SubsetEditor(experiment = "handler.wi.result")),
+                    Item('_'),
+                    Item('object.error',
+                         style = "readonly",
+                         visible_when = "object.error",
+                         editor = ColorTextEditor(foreground_color = "#000000",
+                                                  background_color = "#ff9191",
+                                                  word_wrap = True)))
 
-class HexbinPluginView(HexbinView):
-    handler = Instance(Handler, transient = True)
+class HexbinPluginView(HexbinView, PluginViewMixin):
     handler_factory = Callable(HexbinHandler)
-    
-    def is_wi_valid(self, wi):
-        return wi.result and self.is_valid(wi.result)
-
-    def plot_wi(self, wi, pane):
-        pane.plot(wi.result, self)
 
 @provides(IViewPlugin)
 class HexbinPlugin(Plugin):

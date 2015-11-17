@@ -4,6 +4,7 @@ Created on Mar 15, 2015
 @author: brian
 """
 from traits.api import Interface, Str, HasTraits, Instance, Property, List
+from traitsui.api import Handler
 from cytoflowgui.workflow_item import WorkflowItem
 
 OP_PLUGIN_EXT = 'edu.mit.synbio.cytoflow.op_plugins'
@@ -38,21 +39,18 @@ class IOperationPlugin(Interface):
         """
         
         
-    def get_default_view(self, op):
+    def get_default_view(self):
         """
         Return an IView instance set up to be the default view for the operation.
-        
-        Arguments
-        ---------
-        
-        op: IOperation instance
-            the operation to set up the view for
         """
 
     def get_icon(self):
         """
         
         """
+
+class PluginOpMixin(HasTraits):
+    error = Str(transient = True)
         
 class OpHandlerMixin(HasTraits):
     wi = Instance(WorkflowItem)

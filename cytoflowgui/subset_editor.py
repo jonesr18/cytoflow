@@ -22,6 +22,8 @@ import pandas as pd
 import numpy as np
 import re
 
+# TODO - something breaks when you set a column name with a space.
+
 class ISubsetModel(Interface):
     name = Str
     subset_str = Property
@@ -71,7 +73,7 @@ class CategorySubsetModel(HasTraits):
     values = Property(trait = List,
                       depends_on = 'experiment')
     subset_str = Property(trait = Str,
-                          depends_on = 'name, values')
+                          depends_on = 'name, selected[]')
     
     def default_traits_view(self):
         return View(Item('selected',
@@ -89,11 +91,11 @@ class CategorySubsetModel(HasTraits):
 
     # MAGIC: gets the value of the Property trait "subset_str"
     def _get_subset_str(self):
-        if len(self.values) == 0:
+        if len(self.selected) == 0:
             return ""
         
         phrase = "("
-        for cat in self.values:
+        for cat in self.selected:
             if len(phrase) > 1:
                 phrase += " or "
             phrase += "{0} == \"{1}\"".format(self.name, cat) 
@@ -196,7 +198,10 @@ class SubsetModel(HasTraits):
                             editor = ListEditor(editor = InstanceEditor(),
                                                 style = 'custom',
                                                 mutable = False)))
-
+    
+    def __init__(self, *args, **kw_args):
+        super(SubsetModel, self).__init__( *args, **kw_args )
+        
     # MAGIC: gets the value of the Property trait "subset_string"
     def _get_subset_str(self):
         subset_strings = [s.subset_str for s in self.subset_list]
@@ -239,7 +244,6 @@ class SubsetModel(HasTraits):
             # update the subset editor ui
             self.subset_map[name].subset_str = phrase
         
-    @on_trait_change('experiment')
     def _on_experiment_change(self):
         print "experiment changed"
         cond_map = {"bool" : BoolSubsetModel,
@@ -249,6 +253,13 @@ class SubsetModel(HasTraits):
         
         subset_list = []
         subset_map = {}
+        
+        # it's possible that the op we're viewing is no longer valid,
+        # in which case the experiment goes away.
+        
+        if not self.experiment:
+            return
+        
         for name, dtype in self.experiment.conditions.iteritems():
             subset = cond_map[dtype](name = name,
                                      experiment = self.experiment)
@@ -280,13 +291,28 @@ class _SubsetEditor(Editor):
         """
 
         self.model = SubsetModel(initial_subset_str = self.value)
-        self.sync_value(self.factory.experiment, 'experiment', 'from')
         
+        # usually, we'd make this a static notifier on 
+        # SubsetModel._on_experiment_change.  however, in this case we
+        # have to set a dynamic notifier because this is occasionally changed
+        # by the processing thread, and we need to re-dispatch to the ui thread
+        self.model.on_trait_change(self.model._on_experiment_change, 
+                             'experiment', 
+                             dispatch = 'ui')
+        
+        self.sync_value(self.factory.experiment, 'experiment', 'from')        
         self._ui = self.model.edit_traits(kind = 'subpanel',
                                           parent = parent)
         self.control = self._ui.control
         
     def dispose(self):
+        
+        # disconnect the dynamic notifier.
+        self.model.on_trait_change(self.model._on_experiment_change,
+                                   'experiment',
+                                   dispatch = 'ui',
+                                   remove = True)
+        
         if self._ui:
             self._ui.dispose()
             self._ui = None
@@ -312,32 +338,32 @@ class SubsetEditor(BasicEditorFactory):
     experiment = Str
     
     
-# if __name__ == '__main__':
-#     
-#     import FlowCytometryTools as fc
-#     
-#     ex = Experiment()
-#     ex.add_conditions({"Dox" : "bool"})
-#     
-#     tube1 = fc.FCMeasurement(ID='Test 1', 
-#                        datafile='../cytoflow/tests/data/Plate01/RFP_Well_A3.fcs')
-# 
-#     tube2 = fc.FCMeasurement(ID='Test 2', 
-#                        datafile='../cytoflow/tests/data/Plate01/CFP_Well_A4.fcs')
-#     
-#     ex.add_tube(tube1, {"Dox" : True})
-#     ex.add_tube(tube2, {"Dox" : False})
-#     
-#     class C(HasTraits):
-#         val = Str()
-#         experiment = Instance(Experiment)
-# 
-#     c = C(experiment = ex)
-#     c.val = "(Dox == True)"
-#     
-#     c.configure_traits(view=View(Item('val',
-#                                       editor = SubsetEditor(experiment = 'experiment'))))
-#     
-#     
-#     
-#     
+if __name__ == '__main__':
+     
+    import fcsparser
+     
+    ex = Experiment()
+    ex.add_conditions({"Dox" : "bool"})
+     
+    tube1 = fcsparser.parse('../cytoflow/tests/data/Plate01/RFP_Well_A3.fcs',
+                            reformat_meta = True)
+ 
+    tube2 = fcsparser.parse('../cytoflow/tests/data/Plate01/CFP_Well_A4.fcs',
+                            reformat_meta = True)
+     
+    ex.add_tube(tube1, {"Dox" : True})
+    ex.add_tube(tube2, {"Dox" : False})
+     
+    class C(HasTraits):
+        val = Str()
+        experiment = Instance(Experiment)
+ 
+    c = C(experiment = ex)
+    c.val = "(Dox == True)"
+     
+    c.configure_traits(view=View(Item('val',
+                                      editor = SubsetEditor(experiment = 'experiment'))))
+     
+     
+     
+     

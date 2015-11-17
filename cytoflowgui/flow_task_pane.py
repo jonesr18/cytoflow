@@ -3,11 +3,13 @@ Created on Feb 11, 2015
 
 @author: brian
 """
-from pyface.tasks.task_pane import TaskPane
+from pyface.tasks.api import TaskPane
 from matplotlib_editor import MPLFigureEditor
 from traits.api import Instance, provides
 from pyface.tasks.i_task_pane import ITaskPane
 import matplotlib.pyplot as plt
+
+from cytoflow.utility import CytoflowViewError
 
 import threading, time
 
@@ -36,17 +38,14 @@ class FlowTaskPane(TaskPane):
         self.editor.clear = True
         self.editor.draw = True
         
-    def plot(self, experiment, view):
+    def plot(self, wi):
         """
         Plot the an experiment in the center pane.
         
         Arguments
         ---------
-        experiment : cytoflow.Experiment
-            The data to plot
-            
-        view : cytoflow.IView
-            The view to use for the plotting
+        wi : WorkflowItem
+            The WorkflowItem (data + current view) to plot
         """
          
 #         # TODO - make this multithreaded.  atm this returns "Cannot set parent,
@@ -72,20 +71,41 @@ class FlowTaskPane(TaskPane):
         # we can make a new plot (figure); but if the params stay the same
         # and the plot is re-selected, we can just reuse the existing figure.
         
-        view.plot(experiment)
+        if not wi.current_view:
+            self.clear_plot()
+            return
+        
+        if wi.current_view == wi.default_view:
+            # plotting the default view
+            try:
+                wi.current_view.plot(wi.previous.result)
+            except CytoflowViewError as e:
+                wi.current_view.error = e.__str__()
+            else:
+                wi.current_view.error = ""
+        else:
+            if not wi.result:
+                self.clear_plot()
+                return
+            
+            try:
+                wi.current_view.plot(wi.result)
+            except CytoflowViewError as e:
+                wi.current_view.error = e.__str__()
+            else:
+                wi.current_view.error = ""
+
         self.editor.figure = plt.gcf()
            
-        if "interactive" in view.traits():
+        if "interactive" in wi.current_view.traits():
             # we have to re-bind the Cursor to the new Axes object by twiddling
             # the "interactive" trait
-            view.interactive = False
-            view.interactive = True 
-            
+            wi.current_view.interactive = False
+            wi.current_view.interactive = True 
             
     def export(self, filename):
         # TODO - eventually give a preview, allow changing size, dpi, aspect 
         # ratio, plot layout, etc.  at the moment, just export exactly what's
         # on the screen
         plt.savefig(filename, bbox_inches = 'tight')
-        
         

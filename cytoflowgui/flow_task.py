@@ -35,7 +35,7 @@ def update_model(flag, lock, to_update):
         flag.clear()
         while not to_update.empty():
             with lock:
-                prio, wi = to_update.get_nowait()
+                _, wi = to_update.get_nowait()
             wi.update()
 
 
@@ -274,11 +274,10 @@ class FlowTask(Task):
     
     def on_about(self):
         from cytoflow import __version__ as cf_version
-        from FlowCytometryTools import __version__ as fct_version
-        from GoreUtilities import __version__ as gu_version
+        from fcsparser import __version__ as fcs_version
         from pandas.version import version as pd_version
         from numpy.version import version as np_version
-        from numexpr import version as numexp_version
+        from numexpr import __version__ as numexp_version
         from seaborn import __version__ as sns_version
         from matplotlib import __version__ as mpl_version
         from pyface import __version__ as py_version
@@ -288,8 +287,7 @@ class FlowTask(Task):
 
         text = ["<b>Cytoflow {0}</b>".format(cf_version),
                 "<p>",
-                "FlowCytometryTools {0}".format(fct_version),
-                "GoreUtilities {0}".format(gu_version),
+                "fcsversion {0}".format(fcs_version),
                 "pandas {0}".format(pd_version),
                 "numpy {0}".format(np_version),
                 "numexpr {0}".format(numexp_version),
@@ -299,7 +297,8 @@ class FlowTask(Task):
                 "envisage {0}".format(env_version),
                 "traits {0}".format(trt_version),
                 "traitsui {0}".format(trt_ui_version),
-                "Icons from the <a href=http://tango.freedesktop.org/>Tango Desktop Project</a>",
+                "Icons from the <a href=http://tango.freedesktop.org>Tango Desktop Project</a>",
+                "<a href=https://thenounproject.com/search/?q=setup&i=14287>Settings icon</a> by Paulo Sa Ferreira from <a href=https://thenounproject.com>The Noun Project</a>",
                 "Cuvette image from Wikimedia Commons user <a href=http://commons.wikimedia.org/wiki/File:Hellma_Large_cone_cytometry_cell.JPG>HellmaUSA</a>"]
         dialog = AboutDialog(parent = self.window.control,
                              title = "About",
@@ -329,8 +328,9 @@ class FlowTask(Task):
         self.model.workflow.insert(idx+1, wi)
         
         # set up the default view
-        wi.default_view = plugin.get_default_view(wi.operation)
+        wi.default_view = plugin.get_default_view()
         if wi.default_view is not None:
+            wi.default_view.op = wi.operation
             wi.default_view.handler = \
                 wi.default_view.handler_factory(model = wi.default_view, wi = wi.previous)
             wi.views.append(wi.default_view)
@@ -389,9 +389,6 @@ class FlowTask(Task):
         with self.worker_lock:
             if not self.to_update.empty():
                 self.worker_flag.set()
-              
-    def clear_current_view(self):
-        self.view.clear_plot()
         
     def set_current_view(self, view_id):
         """
@@ -436,25 +433,26 @@ class FlowTask(Task):
         if new:
             new.on_trait_change(self.view_parameters_updated)
             
-            if self.model.selected and self.model.selected.is_plottable:
-                self.model.selected.plot(self.view)
+            if self.model.selected:
+                self.view.plot(self.model.selected)
             else:
-                self.clear_current_view()
+                self.view.clear_plot()
         else:
-            self.clear_current_view()
+            self.view.clear_plot()
 
     def _result_updated(self, obj, name, old, new):
         print "result updated"
-        if self.model.selected and self.model.selected.is_plottable:
-            self.model.selected.plot(self.view)
+        if self.model.selected:
+            self.view.plot(self.model.selected)
         else:
-            self.clear_current_view()
+            self.view.clear_plot()
         
     def view_parameters_updated(self, obj, name, new):
         
         # i should be able to specify the metadata i want in the listener,
         # but there's an odd interaction (bug) between metadata, dynamic 
-        # trait listeners and instance traits.
+        # trait listeners and instance traits.  so, check for 'transient'
+        # here instead,
         
         if obj.trait(name).transient:
             return
@@ -464,10 +462,7 @@ class FlowTask(Task):
         if wi is None:
             wi = self.model.workflow[-1]
             
-        if wi.is_plottable:
-            wi.plot(self.view)
-        else:
-            self.clear_current_view()
+        self.view.plot(wi)
         
 class FlowTaskPlugin(Plugin):
     """

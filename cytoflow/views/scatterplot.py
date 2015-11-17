@@ -4,15 +4,46 @@ Created on Apr 19, 2015
 @author: brian
 """
 from traits.api import HasStrictTraits, provides, Str
-from cytoflow.views.i_view import IView
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
+import numpy as np
+
+from cytoflow.views import IView
+from cytoflow.utility import CytoflowViewError
 
 @provides(IView)
 class ScatterplotView(HasStrictTraits):
     """
-    classdocs
+    Plots a 2-d scatterplot.  
+    
+    Attributes
+    ----------
+    
+    name : Str
+        The name of the plot, for visualization (and the plot title)
+        
+    xchannel : Str
+        The channel to plot on the X axis
+        
+    ychannel : Str
+        The channel to plot on the Y axis
+        
+    xfacet : Str
+        The conditioning variable for multiple plots (horizontal)
+        
+    yfacet = Str
+        The conditioning variable for multiple plots (vertical)
+        
+    huefacet = Str
+        The conditioning variable for multiple plots (color)
+
+    subset = Str
+        A string passed to pandas.DataFrame.query() to subset the data before
+        we plot it.
+        
+        .. note: should this be a param instead?
     """
     
     id = 'edu.mit.synbio.cytoflow.view.scatterplot'
@@ -26,52 +57,57 @@ class ScatterplotView(HasStrictTraits):
     huefacet = Str
     subset = Str
     
-    def is_valid(self, experiment):
-        """Validate this view against an experiment."""
+    def plot(self, experiment, **kwargs):
+        """Plot a faceted scatter plot view of a channel"""
+        
         if not experiment:
-            return False
+            raise CytoflowViewError("No experiment specified")
+
+        if not self.xchannel:
+            raise CytoflowViewError("X channel not specified")
         
-        if not self.xchannel or self.xchannel not in experiment.channels:
-            return False
+        if self.xchannel not in experiment.channels:
+            raise CytoflowViewError("X channel {0} not in the experiment"
+                                    .format(self.xchannel))
+            
+        if not self.ychannel:
+            raise CytoflowViewError("Y channel not specified")
         
-        if not self.ychannel or self.ychannel not in experiment.channels:
-            return False
+        if self.ychannel not in experiment.channels:
+            raise CytoflowViewError("Y channel {0} not in the experiment")
         
-        if self.xfacet and self.xfacet not in experiment.metadata:
-            return False
+        if self.xfacet and self.xfacet not in experiment.conditions:
+            raise CytoflowViewError("X facet {0} not in the experiment")
         
-        if self.yfacet and self.yfacet not in experiment.metadata:
-            return False
+        if self.yfacet and self.yfacet not in experiment.conditions:
+            raise CytoflowViewError("Y facet {0} not in the experiment")
         
         if self.huefacet and self.huefacet not in experiment.metadata:
-            return False
+            raise CytoflowViewError("Hue facet {0} not in the experiment")
         
         if self.subset:
             try:
-                experiment.query(self.subset)
+                data = experiment.query(self.subset)
             except:
-                return False
-        
-        return True
-    
-    def plot(self, experiment, **kwargs):
-        """Plot a faceted scatter plot view of a channel"""
+                raise CytoflowViewError("Subset string '{0}' isn't valid"
+                                        .format(self.subset))
+        else:
+            data = experiment.data
         
         kwargs.setdefault('alpha', 0.25)
         kwargs.setdefault('s', 2)
         kwargs.setdefault('marker', 'o')
         kwargs.setdefault('antialiased', True)
 
-        
-        if not self.subset:
-            x = experiment.data
-        else:
-            x = experiment.query(self.subset)
-
-        g = sns.FacetGrid(x, 
+        g = sns.FacetGrid(data, 
+                          size = 6,
+                          aspect = 1.5,
                           col = (self.xfacet if self.xfacet else None),
                           row = (self.yfacet if self.yfacet else None),
                           hue = (self.huefacet if self.huefacet else None),
+                          col_order = (np.sort(data[self.xfacet].unique()) if self.xfacet else None),
+                          row_order = (np.sort(data[self.yfacet].unique()) if self.yfacet else None),
+                          hue_order = (np.sort(data[self.huefacet].unique()) if self.huefacet else None),
                           legend_out = False)
         
         g.map(plt.scatter, self.xchannel, self.ychannel, **kwargs)
@@ -80,15 +116,15 @@ class ScatterplotView(HasStrictTraits):
         
 if __name__ == '__main__':
     import cytoflow as flow
-    import FlowCytometryTools as fc
+    import fcsparser
     
     mpl.rcParams['savefig.dpi'] = 2 * mpl.rcParams['savefig.dpi']
     
-    tube1 = fc.FCMeasurement(ID='Test 1', 
-                             datafile='../../cytoflow/tests/data/Plate01/RFP_Well_A3.fcs')
+    tube1 = fcsparser.parse('../../cytoflow/tests/data/Plate01/RFP_Well_A3.fcs',
+                            reformat_meta = True)
 
-    tube2 = fc.FCMeasurement(ID='Test 2', 
-                           datafile='../../cytoflow/tests/data/Plate01/CFP_Well_A4.fcs')
+    tube2 = fcsparser.parse('../../cytoflow/tests/data/Plate01/CFP_Well_A4.fcs',
+                            reformat_meta = True)
     
     ex = flow.Experiment()
     ex.add_conditions({"Dox" : "float"})

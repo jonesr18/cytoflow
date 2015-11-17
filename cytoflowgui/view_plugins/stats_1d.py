@@ -4,15 +4,16 @@ Created on Feb 24, 2015
 @author: brian
 """
 
-from traitsui.api import View, Item, Controller, EnumEditor, Handler
+from traitsui.api import View, Item, Controller, EnumEditor
 from envisage.api import Plugin, contributes_to
-from traits.api import provides, Callable, Instance, Dict
+from traits.api import provides, Callable, Dict
 from pyface.api import ImageResource
 
 from cytoflow import Stats1DView, geom_mean
 from cytoflowgui.subset_editor import SubsetEditor
+from cytoflowgui.color_text_editor import ColorTextEditor
 from cytoflowgui.view_plugins.i_view_plugin \
-    import IViewPlugin, VIEW_PLUGIN_EXT, ViewHandlerMixin
+    import IViewPlugin, VIEW_PLUGIN_EXT, ViewHandlerMixin, PluginViewMixin
     
 import numpy as np
 import scipy.stats
@@ -36,21 +37,14 @@ class Stats1DHandler(Controller, ViewHandlerMixin):
         return View(Item('object.name'),
                     Item('object.variable',
                          editor=EnumEditor(name='handler.conditions'),
-                         # TODO - restrict this to NUMERIC values
-                         label = "X Variable"),
-                    Item('object.xchannel',
-                         editor=EnumEditor(name='handler.channels'),
-                         label = "X Channel"),
-                    Item('object.xfunction',
-                         editor = EnumEditor(name='handler.summary_functions'),
-                         label = "X Summary\nFunction"),
+                         # TODO - restrict this to NUMERIC values?
+                         label = "Variable"),
                     Item('object.ychannel',
                          editor=EnumEditor(name='handler.channels'),
                          label = "Y Channel"),
                     Item('object.yfunction',
                          editor = EnumEditor(name='handler.summary_functions'),
                          label = "Y Summary\nFunction"),
-
                     Item('object.xfacet',
                          editor=EnumEditor(name='handler.conditions'),
                          label = "Horizontal\nFacet"),
@@ -76,17 +70,17 @@ class Stats1DHandler(Controller, ViewHandlerMixin):
                     Item('_'),
                     Item('object.subset',
                          label="Subset",
-                         editor = SubsetEditor(experiment = "handler.wi.result")))
+                         editor = SubsetEditor(experiment = "handler.wi.result")),
+                    Item('_'),
+                    Item('object.error',
+                         style = "readonly",
+                         visible_when = "object.error",
+                         editor = ColorTextEditor(foreground_color = "#000000",
+                                                  background_color = "#ff9191",
+                                                  word_wrap = True)))
     
-class Stats1DPluginView(Stats1DView):
-    handler = Instance(Handler, transient = True)
+class Stats1DPluginView(Stats1DView, PluginViewMixin):
     handler_factory = Callable(Stats1DHandler)
-    
-    def is_wi_valid(self, wi):
-        return wi.result and self.is_valid(wi.result)
-
-    def plot_wi(self, wi, pane):
-        pane.plot(wi.result, self)
 
 @provides(IViewPlugin)
 class Stats1DPlugin(Plugin):

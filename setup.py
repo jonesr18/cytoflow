@@ -2,6 +2,15 @@ from __future__ import print_function
 from setuptools import setup, find_packages, Extension
 import io, os, re
 
+#on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+
+# until RTD can get their act together
+on_rtd = (os.environ.get('PWD', "").find("readthedocs")) >= 0
+
+no_logicle = os.environ.get('NO_LOGICLE', None) == 'True'
+
+print(os.environ)
+
 here = os.path.abspath(os.path.dirname(__file__))
 
 def read_rst(*filenames, **kwargs):
@@ -40,11 +49,16 @@ setup(
     # Project uses reStructuredText, so ensure that the docutils get
     # installed or upgraded on the target machine
     install_requires = ['pandas>=0.15.0',
-                        'FlowCytometryTools>=0.4',
+                        'fcsparser>=0.1.1',
+                        'numpy>=1.9.0',
                         'numexpr>=2.1',
+                        'matplotlib>=1.4.3',
+                        'scipy>=0.14',
+                        'scikit-learn>=0.16',
                         'seaborn>=0.6.0',
                         'pyface>=4.0',
-                        'envisage>=4.0'],
+                        'envisage>=4.0'] \
+                if not on_rtd else None,
                         
                         # ALSO requires PyQt4 >= 4.10, but it's not available
                         # via pypi and distutils.  Install it locally!
@@ -56,10 +70,10 @@ setup(
                                         "cytoflow/operations/logicle_ext/Logicle.i"],
                              depends = ["cytoflow/operations/logicle_ext/FastLogicle.cpp",
                                         "cytoflow/operations/logicle_ext/Logicle.cpp",
-                                        "cytoflow/operations/logicle_ext/Logicle.i"],
-                             swig_opts=['-c++'])],
-    
-    #include_package_data = True,
+                                        "cytoflow/operations/logicle_ext/Logicle.i",
+                                        "cytoflow/operations/logicle_ext/logicle.h"],
+                             swig_opts=['-c++'])] \
+                if not (on_rtd or no_logicle) else None,
     
     package_data = { 'cytoflowgui' : ['preferences.ini',
                                       'images/*.png',

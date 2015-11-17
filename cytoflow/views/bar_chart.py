@@ -7,11 +7,13 @@ if __name__ == '__main__':
     import os
     os.environ['TRAITS_DEBUG'] = "1"
 
-from traits.api import HasStrictTraits, Str, provides, Callable, Enum
+from traits.api import HasStrictTraits, Str, provides, Callable
 import matplotlib.pyplot as plt
-from cytoflow.views.i_view import IView
-import numpy as np
 import seaborn as sns
+import numpy as np
+
+from cytoflow.views import IView
+from cytoflow.utility import CytoflowViewError
 
 @provides(IView)
 class BarChartView(HasStrictTraits):
@@ -68,6 +70,16 @@ class BarChartView(HasStrictTraits):
     subset : Str
         a string passed to pandas.DataFrame.query() to subset the data before 
         we plot it.
+        
+    Examples
+    --------
+    >>> bar = flow.BarChartView()
+    >>> bar.name = "Bar Chart"
+    >>> bar.channel = 'Y2-A'
+    >>> bar.variable = 'Y2-A+'
+    >>> bar.huefacet = 'Dox'
+    >>> bar.function = len
+    >>> bar.plot(ex)
     """
     
     # traits   
@@ -96,45 +108,36 @@ class BarChartView(HasStrictTraits):
     def plot(self, experiment, **kwargs):
         """Plot a bar chart"""
         
-        if self.subset:
-            data = experiment.query(self.subset)
-        else:
-            data = experiment.data
-            
-        sns.factorplot(x = self.variable,
-                       y = self.channel,
-                       data = data,
-                       row = (self.yfacet if self.yfacet else None),
-                       col = (self.xfacet if self.xfacet else None),
-                       hue = (self.huefacet if self.huefacet else None),
-                       # something buggy here.
-                       #orient = ("h" if self.orientation == "horizontal" else "v"),
-                       estimator = self.function,
-                       ci = None,
-                       kind = "bar")
-        
-    def is_valid(self, experiment):
-        """Validate this view against an experiment."""
         if not experiment:
-            return False
+            raise CytoflowViewError("No experiment specified")
+
+        if not self.channel:
+            raise CytoflowViewError("Channel not specified")
         
         if self.channel not in experiment.channels:
-            return False
+            raise CytoflowViewError("Channel {0} isn't in the experiment"
+                                    .format(self.channel))
         
-        if not self.variable in experiment.metadata:
-            return False
+        if not self.variable:
+            raise CytoflowViewError("Variable not specified")
+        
+        if not self.variable in experiment.conditions:
+            raise CytoflowViewError("Variable {0} isn't in the experiment")
         
         if not self.function:
-            return False
+            raise CytoflowViewError("Function not specified")
         
-        if self.xfacet and self.xfacet not in experiment.metadata:
-            return False
+        if self.xfacet and self.xfacet not in experiment.conditions:
+            raise CytoflowViewError("X facet {0} isn't in the experiment"
+                                    .format(self.xfacet))
         
         if self.yfacet and self.yfacet not in experiment.metadata:
-            return False
+            raise CytoflowViewError("Y facet {0} isn't in the experiment"
+                                    .format(self.yfacet))
 
         if self.huefacet and self.huefacet not in experiment.metadata:
-            return False
+            raise CytoflowViewError("Hue facet {0} isn't in the experiment"
+                                    .format(self.huefacet))
         
 #         if self.error_bars == 'data' and self.error_function is None:
 #             return False
@@ -146,27 +149,44 @@ class BarChartView(HasStrictTraits):
         
         if self.subset:
             try:
-                experiment.query(self.subset)
+                data = experiment.query(self.subset)
             except:
-                return False
-        
-        return True
-    
+                raise CytoflowViewError("Subset string {0} isn't valid"
+                                        .format(self.subset))
+        else:
+            data = experiment.data
+            
+        sns.factorplot(x = self.variable,
+                       y = self.channel,
+                       data = data,
+                       size = 6,
+                       aspect = 1.5,
+                       row = (self.yfacet if self.yfacet else None),
+                       col = (self.xfacet if self.xfacet else None),
+                       hue = (self.huefacet if self.huefacet else None),
+                       col_order = (np.sort(data[self.xfacet].unique()) if self.xfacet else None),
+                       row_order = (np.sort(data[self.yfacet].unique()) if self.yfacet else None),
+                       # something buggy here.
+                       #orient = ("h" if self.orientation == "horizontal" else "v"),
+                       estimator = self.function,
+                       ci = None,
+                       kind = "bar")
+
 if __name__ == '__main__':
     import cytoflow as flow
-    import FlowCytometryTools as fc
+    import fcsparser
     
-    tube1 = fc.FCMeasurement(ID='Test 1', 
-                             datafile='../../cytoflow/tests/data/Plate01/RFP_Well_A3.fcs')
+    tube1 = fcsparser.parse('../../cytoflow/tests/data/Plate01/RFP_Well_A3.fcs',
+                            reformat_meta = True)
 
-    tube2 = fc.FCMeasurement(ID='Test 2', 
-                           datafile='../../cytoflow/tests/data/Plate01/CFP_Well_A4.fcs')
+    tube2 = fcsparser.parse('../../cytoflow/tests/data/Plate01/CFP_Well_A4.fcs',
+                            reformat_meta = True)
     
-    tube3 = fc.FCMeasurement(ID='Test 3', 
-                             datafile='../../cytoflow/tests/data/Plate01/RFP_Well_A3.fcs')
+    tube3 = fcsparser.parse('../../cytoflow/tests/data/Plate01/RFP_Well_A3.fcs',
+                            reformat_meta = True)
 
-    tube4 = fc.FCMeasurement(ID='Test 4', 
-                           datafile='../../cytoflow/tests/data/Plate01/CFP_Well_A4.fcs')
+    tube4 = fcsparser.parse('../../cytoflow/tests/data/Plate01/CFP_Well_A4.fcs',
+                            reformat_meta = True)
     
     ex = flow.Experiment()
     ex.add_conditions({"Dox" : "float", "Repl" : "int"})

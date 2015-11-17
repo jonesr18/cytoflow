@@ -1,8 +1,9 @@
 from traits.api import Instance, Any, List, on_trait_change, Str, Dict, Bool
 from traitsui.api import UI, View, Item, EnumEditor
-from pyface.tasks.api import DockPane
+from pyface.tasks.api import DockPane, Task
 from pyface.action.api import ToolBarManager
 from pyface.tasks.action.api import TaskAction
+from pyface.api import ImageResource
 from pyface.qt import QtGui, QtCore
 from cytoflowgui.view_plugins import IViewPlugin
 from cytoflowgui.workflow_item import WorkflowItem
@@ -19,7 +20,7 @@ class ViewDockPane(DockPane):
     name = 'View Properties'
 
     # the Task that serves as the controller
-    task = Instance('flow_task.FlowTask')
+    task = Instance(Task)
 
     # the IViewPlugins that the user can possibly choose.  set by the controller
     # as we're instantiated
@@ -63,6 +64,12 @@ class ViewDockPane(DockPane):
         """ 
         Destroy the toolkit-specific control that represents the pane.
         """
+        # disconnect the notifier
+        self.on_trait_change(self._set_enabled, 
+                             'enabled', 
+                             dispatch = 'ui',
+                             remove = True)
+                 
         # Destroy the Traits-generated control inside the dock control.
         if self._ui is not None:
             self._ui.dispose()
@@ -84,8 +91,9 @@ class ViewDockPane(DockPane):
                                       show_tool_names = False,
                                       image_size = (32, 32))
         
-        self._default_action = TaskAction(name = "Default\nView",
+        self._default_action = TaskAction(name = "Setup View",
                                           on_perform = lambda: self.task.set_current_view("default"),
+                                          image = ImageResource('setup'),
                                           style = 'toggle',
                                           visible = False)
         self._actions["default"] = self._default_action
@@ -150,7 +158,7 @@ class ViewDockPane(DockPane):
         # do UI things.   we get notified if *either* the currently selected 
         # workflowitem *or* the current view changes.
         
-         # untoggle everything on the toolbar
+        # untoggle everything on the toolbar
         for action in self._actions.itervalues():
             action.checked = False
   

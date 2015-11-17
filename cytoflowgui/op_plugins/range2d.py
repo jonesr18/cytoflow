@@ -4,15 +4,17 @@ Created on Apr 25, 2015
 @author: brian
 '''
 
-from traitsui.api import View, Item, EnumEditor, Controller, Handler
+from traitsui.api import View, Item, EnumEditor, Controller
 from envisage.api import Plugin, contributes_to
-from traits.api import provides, DelegatesTo, Callable, Instance
-from cytoflowgui.op_plugins import IOperationPlugin, OpHandlerMixin, OP_PLUGIN_EXT
-from cytoflow import Range2DOp, ScatterplotView, RangeSelection2D
+from traits.api import provides, Callable
+from cytoflowgui.op_plugins.i_op_plugin \
+    import IOperationPlugin, OpHandlerMixin, PluginOpMixin, OP_PLUGIN_EXT
+from cytoflow.operations.range2d import Range2DOp, RangeSelection2D
 from pyface.api import ImageResource
-from cytoflowgui.view_plugins.i_view_plugin import ViewHandlerMixin
+from cytoflowgui.view_plugins.i_view_plugin import ViewHandlerMixin, PluginViewMixin
 from cytoflowgui.subset_editor import SubsetEditor
 from cytoflow.views.i_selectionview import ISelectionView
+from cytoflowgui.color_text_editor import ColorTextEditor
 
 class Range2DHandler(Controller, OpHandlerMixin):
     
@@ -27,7 +29,13 @@ class Range2DHandler(Controller, OpHandlerMixin):
                          editor=EnumEditor(name='handler.previous_channels'),
                          label = "Y Channel"),
                     Item('object.ylow', label = "Y Low"),
-                    Item('object.yhigh', label = "Y High")) 
+                    Item('object.yhigh', label = "Y High"),
+                    Item('handler.wi.error',
+                         label = 'Error',
+                         visible_when = 'handler.wi.error',
+                         editor = ColorTextEditor(foreground_color = "#000000",
+                                                  background_color = "#ff9191",
+                                                  word_wrap = True))) 
         
 class RangeView2DHandler(Controller, ViewHandlerMixin):
     def default_traits_view(self):
@@ -39,29 +47,20 @@ class RangeView2DHandler(Controller, ViewHandlerMixin):
                     Item('object.ychannel',
                          label = "Y Channel",
                          style = 'readonly'),
+                    Item('object.huefacet',
+                         editor=EnumEditor(name='handler.conditions'),
+                         label="Color\nFacet"),
                     Item('_'),
                     Item('object.subset',
                          label = "Subset",
                          editor = SubsetEditor(experiment = 'handler.wi.previous.result')))
 
 @provides(ISelectionView)
-class Range2DSelectionView(RangeSelection2D):
-    handler = Instance(Handler, transient = True)
+class Range2DSelectionView(RangeSelection2D, PluginViewMixin):
     handler_factory = Callable(RangeView2DHandler)
     
-    view = Instance(ScatterplotView, args = ())
-    name = DelegatesTo('view')
-    xchannel = DelegatesTo('view')
-    ychannel = DelegatesTo('view')
-    subset = DelegatesTo('view')
-        
-    def is_wi_valid(self, wi):
-        return (wi.previous 
-                and wi.previous.result 
-                and self.is_valid(wi.previous.result))
-    
-    def plot_wi(self, wi, pane):
-        pane.plot(wi.previous.result, self) 
+class Range2DPluginOp(Range2DOp, PluginOpMixin):
+    handler_factory = Callable(Range2DHandler)
 
 @provides(IOperationPlugin)
 class Range2DPlugin(Plugin):
@@ -76,27 +75,11 @@ class Range2DPlugin(Plugin):
     menu_group = "Gates"
     
     def get_operation(self):
-        ret = Range2DOp()
-        ret.add_trait("handler_factory", Callable)
-        ret.handler_factory = Range2DHandler
-        return ret
+        return Range2DPluginOp()
     
-    def get_default_view(self, op):
-        view = Range2DSelectionView()
-         
-        # we have to make these traits on the top-level ThresholdSelection
-        # so that the change handlers get updated.
-         
-        op.sync_trait('xchannel', view, mutual = True)
-        op.sync_trait('xlow', view, mutual = True)
-        op.sync_trait('xhigh', view, mutual = True)
-        op.sync_trait('ychannel', view, mutual = True)
-        op.sync_trait('ylow', view, mutual = True)
-        op.sync_trait('yhigh', view, mutual = True)
-        op.sync_trait('name', view, mutual = True)
-         
-        return view
-     
+    def get_default_view(self):
+        return Range2DSelectionView()
+
     def get_icon(self):
         return ImageResource('range2d')
     
