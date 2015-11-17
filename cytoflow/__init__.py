@@ -18,8 +18,9 @@ from operations.range import RangeOp
 from operations.range2d import Range2DOp
 from operations.polygon import PolygonOp
 from operations.hlog import HlogTransformOp
-from operations.logicle import LogicleTransformOp
+# from operations.logicle import LogicleTransformOp
 from operations.import_op import ImportOp, Tube
+from operations.mixtureModel import MixtureModelOp
 
 from views.histogram import HistogramView
 from views.hexbin import HexbinView
